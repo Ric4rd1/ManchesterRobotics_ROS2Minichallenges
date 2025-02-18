@@ -9,12 +9,12 @@ class SignalGenerator(Node):
     def __init__(self):
         super().__init__('signal_generator')
         # Publishers
-        self.sig_publisher = self.create_publisher(Float32, 'signal', 10) #buffer time might need adjusting
+        self.sig_publisher = self.create_publisher(Float32, 'signal', 100) #buffer time might need adjusting
         self.time_publisher = self.create_publisher(Float32, 'time', 10)
         
         
         # Timer
-        timer_period = 0.05 # 100Hz samle freq
+        timer_period = 0.01 # 100Hz samle freq
         self.timer = self.create_timer(timer_period, self.calculate_sin)
 
         self.start_time = pytime.time()
@@ -29,14 +29,14 @@ class SignalGenerator(Node):
         signal_msg.data = sine_wave
         self.sig_publisher.publish(signal_msg)
 
-        '''
+        
         # Publish time
         time_msg = Float32()
         time_msg.data = t
         self.time_publisher.publish(time_msg)
-'''
         # Log
-        self.get_logger().info(f'Time: {t:.2f}s, Signal: {sine_wave:.3f}')
+        if int(t * 100) % 10 == 0:  # Log every 10 cycles (~100ms intervals)
+            self.get_logger().info(f'Time: {t:.2f}s, Signal: {sine_wave:.3f}')
 
 def main(args=None):
     rclpy.init(args=args)
