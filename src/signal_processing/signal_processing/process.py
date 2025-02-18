@@ -35,13 +35,14 @@ class Process(Node):
             self.get_logger().info(f'Time: {self.last_time:.2f}s, Signal: {processed_signal:.3f}')
 
     def process_signal(self, time, signal):
+        # Add a phase shift to the received signal
+        t1 = 0.5
+        #sin(w(t-t1))=sin(wt) cos(wt1)               cos(wt)                  sin(wt1)  
+        proc_sig = signal*np.cos(2*np.pi*t1) - np.sqrt(1-(signal**2))*np.sin(2*np.pi*t1)
         # Cut amplitude by half
-        proc_sig = signal / 2.0
+        proc_sig = proc_sig / 2.0
         # Offset so signal remains positive for al time
         proc_sig += 0.5
-        # Add a phase shift to the received signal
-        # t1 = 1
-        # proc_sig = proc_sig*np.cos(t1) + np.cos(time)*np.sin(t1)
         return proc_sig
 
 def main(args=None):
