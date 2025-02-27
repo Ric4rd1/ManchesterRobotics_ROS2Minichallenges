@@ -1,10 +1,61 @@
-/group1/motor_sys_1:
+# GROUP 1
+/group1/motor_sys:
   ros__parameters:
+    initial_conditions: 0.0
+    sample_time: 0.01
     sys_gain_K: 4.0
     sys_tau_T: 0.9
 
-
-/group2/motor_sys_2:
+/group1/sp_gen:
   ros__parameters:
-    sys_gain_K: 1.75
-    sys_tau_T: 0.5 
+    timer_period: 0.01
+    signal_type: 'square'
+    square_amplitude: 1.0
+    square_period: 4.0
+    square_duty_cycle: 0.5
+
+/group1/ctrl:
+  ros__parameters:
+    sample_time: 0.01
+    kp: 1.0
+
+# GROUP 2
+/group2/motor_sys:
+  ros__parameters:
+    initial_conditions: 0.0
+    sample_time: 0.01
+    sys_gain_K: 4.0
+    sys_tau_T: 0.9
+
+/group2/sp_gen:
+  ros__parameters:
+    timer_period: 0.01
+    signal_type: 'square'
+    square_amplitude: 2.0
+    square_period: 2.0
+    square_duty_cycle: 0.7
+
+/group2/ctrl:
+  ros__parameters:
+    sample_time: 0.01
+    kp: 2.0
+
+# GROUP 3
+/group3/motor_sys:
+  ros__parameters:
+    initial_conditions: 0.0
+    sample_time: 0.01
+    sys_gain_K: 4.0
+    sys_tau_T: 0.9
+
+/group3/sp_gen:
+  ros__parameters:
+    timer_period: 0.01
+    signal_type: 'sine'
+    sine_amplitude: 2.0
+    sine_omega: 1.0
+
+/group3/ctrl:
+  ros__parameters:
+    sample_time: 0.01
+    kp: 2.0

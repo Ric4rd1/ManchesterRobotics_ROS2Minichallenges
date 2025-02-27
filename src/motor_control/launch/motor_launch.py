@@ -1,19 +1,24 @@
 from launch import LaunchDescription
 from launch_ros.actions import Node
 
+# Packages to get the address of the yaml file
+import os 
+from ament_index_python.packages import get_package_share_directory 
+
 def generate_launch_description():
+
+    # Get the address of the yaml file 
+    config = os.path.join(
+        get_package_share_directory('motor_control'),
+        'config',
+        'params.yaml')
+
     motor_node = Node(name="motor_sys",
                        package='motor_control',
                        executable='dc_motor',
                        emulate_tty=True,
                        output='screen',
-                       parameters=[{
-                        'sample_time': 0.01,
-                        'sys_gain_K': 2.16,
-                        'sys_tau_T': 0.05,
-                        'initial_conditions': 0.0,
-                            }
-                        ]
+                       parameters=[config]
                     )
     
     sp_node = Node(name="sp_gen",
@@ -21,6 +26,7 @@ def generate_launch_description():
                        executable='set_point',
                        emulate_tty=True,
                        output='screen',
+                       parameters=[config]
                        )
     
     ctrl_node = Node(name = "ctrl",
@@ -28,9 +34,7 @@ def generate_launch_description():
                      executable='controller',
                      emulate_tty=True,
                      output='screen',
-                     parameters=[{
-                         'kp': 3.1,
-                     }]
+                     parameters=[config]
 
                      )
     

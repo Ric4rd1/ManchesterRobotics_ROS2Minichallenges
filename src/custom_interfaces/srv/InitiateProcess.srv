@@ -1,0 +1,9 @@
+# Custom service
+# This is a service to initiate motor_control package
+
+# request
+bool enable # for enabling / disabling
+---
+# response
+bool success # indicating successful run service
+string message # informational
