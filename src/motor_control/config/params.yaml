@@ -2,13 +2,13 @@
 /group1/motor_sys:
   ros__parameters:
     initial_conditions: 0.0
-    sample_time: 0.01
+    sample_time: 0.001
     sys_gain_K: 4.0
     sys_tau_T: 0.9
 
 /group1/sp_gen:
   ros__parameters:
-    timer_period: 0.01
+    timer_period: 0.001
     signal_type: 'square'
     square_amplitude: 1.0
     square_period: 4.0
@@ -16,8 +16,10 @@
 
 /group1/ctrl:
   ros__parameters:
-    sample_time: 0.01
-    kp: 1.0
+    sample_time: 0.001
+    kp: 2.0
+    ki: 0.1
+    kd: 0.01
 
 # GROUP 2
 /group2/motor_sys:
@@ -39,6 +41,8 @@
   ros__parameters:
     sample_time: 0.01
     kp: 2.0
+    ki: 0.1
+    kd: 0.01
 
 # GROUP 3
 /group3/motor_sys:
@@ -59,3 +63,5 @@
   ros__parameters:
     sample_time: 0.01
     kp: 2.0
+    ki: 0.1
+    kd: 0.01
