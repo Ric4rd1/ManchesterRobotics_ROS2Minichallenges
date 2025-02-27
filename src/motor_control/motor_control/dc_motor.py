@@ -19,11 +19,11 @@ class DCMotor(Node):
 
         # Declare parameters
         # System sample time in seconds
-        self.declare_parameter('sample_time', 0.02)
+        self.declare_parameter('sample_time', 0.001)
         # System gain K
-        self.declare_parameter('sys_gain_K', 1.75)
+        self.declare_parameter('sys_gain_K', 4.0)
         # System time constant Tau
-        self.declare_parameter('sys_tau_T', 0.5)
+        self.declare_parameter('sys_tau_T', 0.9)
         # System initial conditions
         self.declare_parameter('initial_conditions', 0.0)
 

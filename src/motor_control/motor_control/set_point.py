@@ -20,7 +20,7 @@ class SetPointPublisher(Node):
         self.send_request(True) 
 
         # Parameters
-        self.declare_parameter('timer_period', 0.05) # seconds
+        self.declare_parameter('timer_period', 0.001) # seconds
         self.declare_parameter('signal_type', 'square')
         self.signals = ['sine', 'square'] # valid signals
         # sine parameters

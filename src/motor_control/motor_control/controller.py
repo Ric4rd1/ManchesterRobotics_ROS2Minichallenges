@@ -17,10 +17,10 @@ class Controller(Node):
         self.send_request(True) 
 
         # Parameters
-        self.declare_parameter('kp', 0.1)
-        self.declare_parameter('ki', 0.01)
+        self.declare_parameter('kp', 2.0)
+        self.declare_parameter('ki', 0.1)
         self.declare_parameter('kd', 0.01)
-        self.declare_parameter('sample_time', 0.05)
+        self.declare_parameter('sample_time', 0.001)
 
         # Retrieve control parameters
         self.param_kp = self.get_parameter('kp').value
@@ -72,6 +72,11 @@ class Controller(Node):
             self.get_logger().error(f'Service call failed: {e}') 
 
     def timer_cb(self):
+
+        # Wait for the service to activate the program
+        if not self.system_running:
+            return
+        
         # Compute error
         self.error = self.setpoint - self.curr_speed
 
