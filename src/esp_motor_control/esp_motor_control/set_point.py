@@ -4,7 +4,6 @@ from rclpy.node import Node
 import numpy as np
 from std_msgs.msg import Float32
 from rcl_interfaces.msg import SetParametersResult
-#from custom_interfaces.srv import InitiateProcess
 
 #Class Definition
 class SetPointPublisher(Node):

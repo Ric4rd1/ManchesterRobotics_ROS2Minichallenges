@@ -1,0 +1,12 @@
+/RCG/set_point:
+  ros__parameters:
+    timer_period: 0.001
+    signal_type: 'step' # sine and square also available
+    square_amplitude: 4.0
+    square_period: 4.0
+    square_duty_cycle: 0.5
+    sine_amplitude: 10.0
+    sine_omega: 1.0
+    step_amplitude: 0.0
+
+

@@ -49,8 +49,8 @@ rcl_timer_t velcontrol_timer; // used for velocity control
 #define LED_PIN 2 // error indicating LED
 #define PWM_PIN_IN1 18     // Driver In 1
 #define PWM_PIN_IN2 19     // Driver In 2
-#define ENC_A 16 
-#define ENC_B 17
+#define ENC_A 16           // Encoder cahnnel A
+#define ENC_B 17           // Encoder channel B
 // Define both PWM configurations
 #define PWM_FRQ 5000   // PWM frequency (Hz)
 #define PWM_RES 8      // PWM resolution (bits)
@@ -63,14 +63,32 @@ rcl_timer_t velcontrol_timer; // used for velocity control
 #define RCCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){error_loop();}}
 #define RCSOFTCHECK(fn) { rcl_ret_t temp_rc = fn; if((temp_rc != RCL_RET_OK)){}}
 
+// Executes a statement (X) every N milliseconds
+#define EXECUTE_EVERY_N_MS(MS, X)  do { \
+  static volatile int64_t init = -1; \
+  if (init == -1) { init = uxr_millis();} \
+  if (uxr_millis() - init > MS) { X; init = uxr_millis();} \
+} while (0)\
+
+// Micro Ros connection state machine 
+enum states {
+  WAITING_AGENT,        // Waiting for ROS 2 agent connection
+  AGENT_AVAILABLE,      // Agent detected
+  AGENT_CONNECTED,      // Successfully connected
+  AGENT_DISCONNECTED    // Connection lost
+} state;
+
+bool create_entities();
+void destroy_entities();
+
 // Local variables
 float pi = 3.1416;
 
 // Controller
-float kp = 30.0;
-float ki = 18.0;
-float kd = 0.01;
-float T = 0.01; // sample time seconds
+float kp = 19.76;
+float ki = 150.3;
+float kd = 0.0;
+float T = 0.05; // sample time seconds
 float K1,K2,K3;
 float setpoint = 0.0; // velocity reference
 double vel; // actual velocity
@@ -105,7 +123,7 @@ void velcontrol_timer_callback(rcl_timer_t *timer, int64_t last_call_time) {
             vel = (pos_now - last_pos) / dt; // Counts per second
             vel = (vel / (12.0 * 34.0)) * (2.0 * pi); // Radians per second
             motor_output.data = vel;
-            Serial.print("motor_output (rad/s): "); Serial.println(vel);
+            //Serial.print("motor_output (rad/s): "); Serial.println(vel);
         }
         
         last_pos = pos_now;
@@ -184,37 +202,68 @@ void setup() {
   K1 = kp + T*ki + kd/T;
   K2 = -kp - 2.0*kd/T;
   K3 = kd/T; 
-  
-  delay(2000); // Wait for ros configuration to finish
 
-  allocator = rcl_get_default_allocator(); // assign memory allocator
+  // Iinitial state
+  state = WAITING_AGENT;
+}
 
-  //create init_options
+void loop() {
+  switch (state) {
+
+    case WAITING_AGENT:
+      EXECUTE_EVERY_N_MS(500, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_AVAILABLE : WAITING_AGENT;);
+      break;
+
+    case AGENT_AVAILABLE:
+      state = (true == create_entities()) ? AGENT_CONNECTED : WAITING_AGENT;
+      if (state == WAITING_AGENT) {
+        destroy_entities();
+      };
+      break;
+
+    case AGENT_CONNECTED:
+      EXECUTE_EVERY_N_MS(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
+      if (state == AGENT_CONNECTED) {
+        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(25));
+      }
+      break;
+
+    case AGENT_DISCONNECTED:
+      destroy_entities();
+      state = WAITING_AGENT;
+      break;
+      
+    default:
+      break;
+  }
+}
+
+bool create_entities(){
+  // Initialize Micro-ROS
+  allocator = rcl_get_default_allocator();
   RCCHECK(rclc_support_init(&support, 0, NULL, &allocator));
+  RCCHECK(rclc_node_init_default(&node, "motor", "RCG", &support));
 
-  // create node
-  RCCHECK(rclc_node_init_default(&node, "motor", "", &support));
-
-  // create setpoint subscriber
-  RCCHECK(rclc_subscription_init_default(
-    &setpoint_subscriber,
-    &node,
-    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
-    "set_point"));
-
-  // create motor output publisher
+  // Create motor output Publisher
   RCCHECK(rclc_publisher_init_default(
     &motor_output_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
     "motor_output"));
 
-  // create motor input publisher
+  // Create motor input Publisher
   RCCHECK(rclc_publisher_init_default(
     &motor_input_publisher,
     &node,
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
     "motor_input"));
+
+  // Create setpoint Subscriber
+  RCCHECK(rclc_subscription_init_default(
+    &setpoint_subscriber,
+    &node,
+    ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
+    "set_point"));
 
   // Initialize Timers
   // Timer for publishing 
@@ -231,19 +280,29 @@ void setup() {
       &support,
       RCL_MS_TO_NS(velcontrol_timer_timeout),
       velcontrol_timer_callback));
-  // create executor
+
+  // Initialize Executor
+  // create zero initialised executor (no configured) to avoid memory problems
+  executor = rclc_executor_get_zero_initialized_executor();
   RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor, &setpoint_subscriber, &setpoint_signal, &subscription_callback, ON_NEW_DATA));
   RCCHECK(rclc_executor_add_timer(&executor, &publish_timer));
   RCCHECK(rclc_executor_add_timer(&executor, &velcontrol_timer));
 
-  // TEST
-  //ledcWrite(PWM_CHNL0, 170); //
-  //ledcWrite(PWM_CHNL1, 0); // set to 0 
-
+  return true;
 }
 
-void loop() {
-  //delay(100);
-  RCCHECK(rclc_executor_spin_some(&executor, RCL_MS_TO_NS(100))); // Executor spin
+void destroy_entities()
+{
+  rmw_context_t * rmw_context = rcl_context_get_rmw_context(&support.context);
+  (void) rmw_uros_set_context_entity_destroy_session_timeout(rmw_context, 0);
+
+  rcl_subscription_fini(&setpoint_subscriber, &node);
+  rcl_publisher_fini(&motor_output_publisher, &node);
+  rcl_publisher_fini(&motor_input_publisher, &node);
+  rcl_timer_fini(&publish_timer);
+  rcl_timer_fini(&velcontrol_timer);
+  rclc_executor_fini(&executor);
+  rcl_node_fini(&node);
+  rclc_support_fini(&support);
 }
