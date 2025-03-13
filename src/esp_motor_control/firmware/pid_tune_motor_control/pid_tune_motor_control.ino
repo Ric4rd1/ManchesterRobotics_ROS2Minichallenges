@@ -7,11 +7,11 @@
  *                Additionally, publish the motor's inputs and outputs.
  *                       
  * Author       : Ricard
- * Date         : 09/03/2025
- * Version      : motor_control v1
+ * Date         : 11/03/2025
+ * Version      : pid_tune_motor_control 
  * ==========================================================================
  * Additional Notes:
- * - 
+ * - Added a subscriber to change gains on runtime (not working yet, does not publish anymore)
  * - 
  * ==========================================================================
  */
@@ -25,6 +25,8 @@
 #include <rclc/executor.h> // Executor to handle callbacks
 
 #include <std_msgs/msg/float32.h>  // include Float32 msg type
+#include <std_msgs/msg/float32_multi_array.h>  // For receiving PID gains
+
 #include <rcutils/logging_macros.h>
 
 // Instantiate Subscriber and msg
@@ -36,6 +38,10 @@ std_msgs__msg__Float32 motor_output; // Holds the motor vel output value with si
 
 rcl_publisher_t motor_input_publisher; // /motor_output publisher
 std_msgs__msg__Float32 motor_input; // Holds the motor vel output value with sign
+
+rcl_subscription_t pid_gains_subscriber;  // Subscriber for PID gains
+std_msgs__msg__Float32MultiArray pid_gains_msg; // Array message for PID gains
+
 
 // Instantiate micro ros executor and support classes
 rclc_executor_t executor;
@@ -85,13 +91,9 @@ void destroy_entities();
 float pi = 3.1416;
 
 // Controller
-//float kp = 19.76;
-//float ki = 150.3;
-//float kd = 0.0;
-float kp = 25.0;
-float ki = 120.0;
+float kp = 19.76;
+float ki = 150.3;
 float kd = 0.0;
-
 float T = 0.05; // sample time seconds
 float K1,K2,K3;
 float setpoint = 0.0; // velocity reference
@@ -110,6 +112,22 @@ void IRAM_ATTR int_callback(){
     pos -= 1;
   }
 }
+
+void pid_gains_callback(const void * msgin) {
+    const std_msgs__msg__Float32MultiArray * msg = (const std_msgs__msg__Float32MultiArray *)msgin;
+
+    if (msg->data.size >= 3) {  // Ensure at least 3 values are received
+        kp = msg->data.data[0];
+        ki = msg->data.data[1];
+        kd = msg->data.data[2];
+
+        // Recalculate PID coefficients
+        K1 = kp + T * ki + kd / T;
+        K2 = -kp - 2.0 * kd / T;
+        K3 = kd / T;
+    }
+}
+
 
 void velcontrol_timer_callback(rcl_timer_t *timer, int64_t last_call_time) {
     RCLC_UNUSED(last_call_time);
@@ -228,7 +246,7 @@ void loop() {
     case AGENT_CONNECTED:
       EXECUTE_EVERY_N_MS(200, state = (RMW_RET_OK == rmw_uros_ping_agent(100, 1)) ? AGENT_CONNECTED : AGENT_DISCONNECTED;);
       if (state == AGENT_CONNECTED) {
-        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(10));
+        rclc_executor_spin_some(&executor, RCL_MS_TO_NS(25));
       }
       break;
 
@@ -269,6 +287,14 @@ bool create_entities(){
     ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32),
     "set_point"));
 
+  // Create PID gains Subscriber
+  RCCHECK(rclc_subscription_init_default(
+  &pid_gains_subscriber,
+  &node,
+  ROSIDL_GET_MSG_TYPE_SUPPORT(std_msgs, msg, Float32MultiArray),
+  "/pid_gains"));  // New topic for PID gains
+
+
   // Initialize Timers
   // Timer for publishing 
   const unsigned int publisher_timer_timeout = 50;  // 0.1 seconds
@@ -288,8 +314,10 @@ bool create_entities(){
   // Initialize Executor
   // create zero initialised executor (no configured) to avoid memory problems
   executor = rclc_executor_get_zero_initialized_executor();
-  RCCHECK(rclc_executor_init(&executor, &support.context, 3, &allocator));
+  RCCHECK(rclc_executor_init(&executor, &support.context, 4, &allocator));
   RCCHECK(rclc_executor_add_subscription(&executor, &setpoint_subscriber, &setpoint_signal, &subscription_callback, ON_NEW_DATA));
+  RCCHECK(rclc_executor_add_subscription(&executor, &pid_gains_subscriber, &pid_gains_msg, &pid_gains_callback, ON_NEW_DATA));
+
   RCCHECK(rclc_executor_add_timer(&executor, &publish_timer));
   RCCHECK(rclc_executor_add_timer(&executor, &velcontrol_timer));
 
